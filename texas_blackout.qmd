@@ -1,0 +1,78 @@
+# EDS 223 HW4 Final Markdown File
+
+## Author: [Calvin Fu](https://github.com/cuvlin)
+
+The following markdown file contains all of the data loading, wrangling, and analysis required to complete homework 4 for EDS223.
+
+---
+
+### Loading in Data and Packages
+The following code loads in all the packages and data needed for this analysis
+```{r}
+# Load in packages
+library(terra)
+library(sf)
+library(tmap)
+library(tidyverse)
+library(kableExtra)
+
+# Load in the Data
+pre_storm <- merge(
+  terra::rast(
+    '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/VNP46A1/VNP46A1.A2021038.h08v05.001.2021039064328.tif'
+  ),
+  terra::rast(
+    '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif'
+  )
+) *
+  0.1 # Scale factor to turn from datanumber into reflectance
+
+post_storm <- merge(
+  terra::rast(
+    '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/VNP46A1/VNP46A1.A2021047.h08v05.001.2021048091106.tif'
+  ),
+  terra::rast(
+    '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/VNP46A1/VNP46A1.A2021047.h08v06.001.2021048091105.tif'
+  )
+) *
+  0.1 # Scale factor to turn from datanumber into reflectance
+
+roads <- st_read(
+  '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/gis_osm_roads_free_1.gpkg'
+)
+
+buildings <- st_read(
+  '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/gis_osm_buildings_a_free_1.gpkg'
+)
+```
+
+#### Reproject all objects to same CRS:
+We are working spatially so we need to make all the objects of the same crs.
+```{r}
+# Set desired crs
+print(same.crs(pre_storm, post_storm))
+crs <- crs(pre_storm)
+
+# Reproject all objects ot crs
+buildings <- st_transform(buildings, crs = crs)
+roads <- st_transform(roads, crs = crs)
+```
+
+#### Exploration of the Rasters
+In order to work with these rasters its important to know some more information about them. The following code is my exploration.
+```{r}
+# Band names
+names(pre_storm)
+# Check number of bands
+nlyr(pre_storm)
+```
+
+#### Creating blackout mask
+The following code creates the blackout mask. A change in night lights intensity is considered a blackout if the intensity drops more than 200 nW per cm^-2 sr^-2.
+```{r}
+# Create raster of change in night lights
+delta_light <- post_storm - pre_storm
+tm_shape(delta_light) +
+  tm_raster()
+```
+
