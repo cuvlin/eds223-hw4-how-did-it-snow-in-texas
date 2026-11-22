@@ -43,9 +43,7 @@ roads <- st_read(
 buildings <- st_read(
   '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/gis_osm_buildings_a_free_1.gpkg',
   query = "SELECT *
-FROM gis_osm_buildings_a_free_1
-WHERE (type IS NULL AND name IS NULL)
-OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')"
+FROM gis_osm_buildings_a_free_1 WHERE (type IS NULL AND name IS NULL) OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')"
 )
 ```
 
@@ -133,5 +131,18 @@ highways_buffer <- st_transform(highways_buffer, crs = 'EPSG:3083')
 blackout_hwy <- st_difference(blackout_cropped, highways_buffer)
 ```
 
+#### Identify the number of homes likely impacted by blackouts
+The following chunk of codes will identify the number of homes affected by the blackouts by counting the number of homes that intersect with the blackout mask we created above.
+
+```{r}
+# Reproject homes to the texas CRS
+buildings <- st_transform(buildings, crs = 'EPSG:3083')
+# Find the number of homes in the blackout areas
+affected_home_count <- st_intersection(buildings, blackout_hwy) |>
+  st_drop_geometry() |>
+  nrow()
+
+print(c('Count of homes in the blackout area:', affected_home_count))
+```
 
 
