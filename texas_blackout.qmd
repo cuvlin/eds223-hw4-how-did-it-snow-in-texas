@@ -24,8 +24,7 @@ pre_storm <- merge(
   terra::rast(
     '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/VNP46A1/VNP46A1.A2021038.h08v06.001.2021039064329.tif'
   )
-) *
-  0.1 # Scale factor to turn from datanumber into reflectance
+) # Scale factor to turn from datanumber into reflectance
 
 post_storm <- merge(
   terra::rast(
@@ -34,15 +33,19 @@ post_storm <- merge(
   terra::rast(
     '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/VNP46A1/VNP46A1.A2021047.h08v06.001.2021048091105.tif'
   )
-) *
-  0.1 # Scale factor to turn from datanumber into reflectance
+) # Scale factor to turn from datanumber into reflectance
 
 roads <- st_read(
-  '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/gis_osm_roads_free_1.gpkg'
+  '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/gis_osm_roads_free_1.gpkg',
+  query = "SELECT * FROM gis_osm_roads_free_1 WHERE fclass='motorway'"
 )
 
 buildings <- st_read(
-  '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/gis_osm_buildings_a_free_1.gpkg'
+  '/Users/cuvlin/Documents/MEDS/eds223/eds223-hw4-how-did-it-snow-in-texas/data/gis_osm_buildings_a_free_1.gpkg',
+  query = "SELECT *
+FROM gis_osm_buildings_a_free_1
+WHERE (type IS NULL AND name IS NULL)
+OR type in ('residential', 'apartments', 'house', 'static_caravan', 'detached')"
 )
 ```
 
@@ -71,8 +74,64 @@ nlyr(pre_storm)
 The following code creates the blackout mask. A change in night lights intensity is considered a blackout if the intensity drops more than 200 nW per cm^-2 sr^-2.
 ```{r}
 # Create raster of change in night lights
-delta_light <- post_storm - pre_storm
-tm_shape(delta_light) +
-  tm_raster()
+delta_light <- pre_storm - post_storm
+
+# Reclassify difference raster using 200 as the threshold
+blackout_rcl <- matrix(
+  # reclassification matrix
+  c(-Inf, 200, NaN, 200, Inf, 1),
+  ncol = 3,
+  byrow = TRUE
+)
+blackout_mask <- as.factor(classify(delta_light, rcl = blackout_rcl)) # reclassification function
+
+# Vectorize the blackout mask
+blackout_vector <- st_as_sf(as.polygons(
+  blackout_mask,
+  aggregate = TRUE
+)) |>
+  st_make_valid()
+
+# Crop the blackout mask to the Houston area
+houston_bbox <- matrix(
+  c(
+    -96.5,
+    29,
+    -96.5,
+    30.5,
+    -94.5,
+    30.5,
+    -94.5,
+    29,
+    -96.5,
+    29
+  ),
+  ncol = 2,
+  byrow = TRUE
+) |>
+  list() |>
+  st_polygon() |>
+  st_sfc(crs = crs)
+
+blackout_cropped <- st_crop(blackout_vector, houston_bbox)
+
+# Reproject cropped blackout to EPSG:3083
+blackout_cropped <- st_transform(blackout_cropped, crs = 'EPSG:3083')
 ```
+
+#### Exclude highways from the cropped blackout mask
+Highways experienced a lot of changes in their night light intensities that are not related to the storm. The following chunk of code removes all areas within 200m of a highway from the final blackout mask.
+
+```{r}
+# Create shape with 200m buffer from all highways
+highways_buffer <- st_buffer(roads, dist = units::set_units(200, 'm')) |>
+  st_union()
+# Reproject to EPSG:3083
+highways_buffer <- st_transform(highways_buffer, crs = 'EPSG:3083')
+
+# Remove highway areas from the blackout vector
+blackout_hwy <- st_difference(blackout_cropped, highways_buffer)
+```
+
+
 
