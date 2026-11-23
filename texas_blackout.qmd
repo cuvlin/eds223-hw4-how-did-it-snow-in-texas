@@ -9,6 +9,8 @@ The following markdown file contains all of the data loading, wrangling, and ana
 ### Loading in Data and Packages
 The following code loads in all the packages and data needed for this analysis
 ```{r}
+#| output: false
+#| warning: false
 # Load in packages
 library(terra)
 library(sf)
@@ -50,6 +52,7 @@ FROM gis_osm_buildings_a_free_1 WHERE (type IS NULL AND name IS NULL) OR type in
 #### Reproject all objects to same CRS:
 We are working spatially so we need to make all the objects of the same crs.
 ```{r}
+#| warning: false
 # Set desired crs
 print(same.crs(pre_storm, post_storm))
 crs <- crs(pre_storm)
@@ -68,9 +71,25 @@ names(pre_storm)
 nlyr(pre_storm)
 ```
 
+Visualizing the night lights before and after the storm:
+
+```{r}
+#| warning: false
+#| # Visualize the nigh lights side by side
+pre_map <- tm_shape(pre_storm) +
+  tm_raster(col.scale = tm_scale_continuous_log1p(values = "inferno")) +
+  tm_title('Night Lights Before Storm')
+post_map <- tm_shape(post_storm) +
+  tm_raster(col.scale = tm_scale_continuous_log1p(values = "inferno")) +
+  tm_title('Night Lights After Storm')
+tmap_arrange(pre_map, post_map, ncol = 2)
+```
+
 #### Creating blackout mask
 The following code creates the blackout mask. A change in night lights intensity is considered a blackout if the intensity drops more than 200 nW per cm^-2 sr^-2.
 ```{r}
+#| output: false
+#| warning: false
 # Create raster of change in night lights
 delta_light <- pre_storm - post_storm
 
@@ -121,6 +140,8 @@ blackout_cropped <- st_transform(blackout_cropped, crs = 'EPSG:3083')
 Highways experienced a lot of changes in their night light intensities that are not related to the storm. The following chunk of code removes all areas within 200m of a highway from the final blackout mask.
 
 ```{r}
+#| output: false
+#| warning: false
 # Create shape with 200m buffer from all highways
 highways_buffer <- st_buffer(roads, dist = units::set_units(200, 'm')) |>
   st_union()
@@ -135,14 +156,29 @@ blackout_hwy <- st_difference(blackout_cropped, highways_buffer)
 The following chunk of codes will identify the number of homes affected by the blackouts by counting the number of homes that intersect with the blackout mask we created above.
 
 ```{r}
+#| warning: false
 # Reproject homes to the texas CRS
 buildings <- st_transform(buildings, crs = 'EPSG:3083')
 # Find the number of homes in the blackout areas
-affected_home_count <- st_intersection(buildings, blackout_hwy) |>
-  st_drop_geometry() |>
-  nrow()
+affected_homes <- st_intersection(buildings, blackout_hwy)
+affected_home_count <- affected_homes |> st_drop_geometry() |> nrow()
 
 print(c('Count of homes in the blackout area:', affected_home_count))
 ```
+
+The following code creates a map of the affected homes in houston:
+```{r}
+#| warning: false
+# Map the homes in Houston that lost power
+tm_shape(affected_homes) +
+  tm_polygons(col = 'blue') +
+  tm_basemap('OpenTopoMap') +
+  tm_title("Map of all homes in Houston that experienced the blackout")
+```
+
+
+#### Houston, we have a problem...
+In the code chunk above, I identified all the houses that fell in the blackout region we created. We counted the total number of houses that fell in this region, and it turns out there were approximately 322146 homes affected. With regard to the residents of houston, this is a really large scale outage. Over 300,000 homes may account for millions of peope that were left powerless in below zero temperatures. Its clear that this outage was widespread, and hopefully gave light to fundamental issues in the city infrastructure. With strong El Nino storms yet to come, its important to understand the magnitude of the these effects. \
+The main limitation of this study is that we are using remotelys ensed night light data, which is not a direct source of information on whether a home lost power. It is a proxy dataset.
 
 

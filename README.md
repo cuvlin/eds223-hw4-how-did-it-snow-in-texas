@@ -42,9 +42,7 @@ Calvin Fu ([@cuvlin](https://github.com/cuvlin))
 ## References
 
 - NASA LAADS DAAC. *VIIRS/NPP Daily Gridded Day Night Band 500m Linear Lat Lon Grid Night (VNP46A1)* [Data set]. https://ladsweb.modaps.eosdis.nasa.gov/
-- OpenStreetMap contributors. *OpenStreetMap data for Texas*, via Geofabrik [Data set]. https://download.geofabrik.de/
 - U.S. Census Bureau. *American Community Survey 2019 5-Year Estimates* [Data set].
-- Wikipedia. (2021). *2021 Texas power crisis*. https://en.wikipedia.org/wiki/2021_Texas_power_crisis
 - EDS 223 Class Page (found [here](https://eds-223-geospatial.github.io/))
 
 ## Acknowledgements
